@@ -53,3 +53,28 @@ def test_vocabulary_endpoint():
     body = client.get("/vocabulary").json()
     assert "monte" in body["words"]
     assert body["size"] == len(body["words"])
+
+
+def test_embedding_endpoint():
+    response = client.get("/embedding/apple")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["dimension"] == 300
+    assert len(body["embedding"]) == 300
+    assert any(value != 0 for value in body["embedding"])
+
+
+def test_embedding_dimensions_param():
+    body = client.get("/embedding/apple", params={"dimensions": 10}).json()
+    assert len(body["embedding"]) == 10
+    assert body["dimension"] == 300
+
+
+def test_embedding_unknown_word():
+    assert client.get("/embedding/qwxzvb").status_code == 404
+
+
+def test_similarity_endpoint():
+    fruit = client.get("/similarity", params={"word1": "apple", "word2": "orange"}).json()["similarity"]
+    car = client.get("/similarity", params={"word1": "apple", "word2": "car"}).json()["similarity"]
+    assert fruit > car

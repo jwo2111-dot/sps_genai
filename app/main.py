@@ -1,11 +1,14 @@
-from fastapi import FastAPI, HTTPException
+from typing import Optional
+
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.bigram_model import BigramModel
+from app.embedding_model import EmbeddingModel
 
 app = FastAPI(
     title="SPS GenAI: Bigram Text Generator",
-    description="Generate text from a simple bigram language model.",
+    description="Generate text from a simple bigram language model and look up spaCy word embeddings.",
 )
 
 # Sample corpus for the bigram model
@@ -18,6 +21,7 @@ It tells the story of Edmond Dantès, who is falsely imprisoned and later seeks 
 ]
 
 bigram_model = BigramModel(corpus)
+embedding_model = EmbeddingModel("en_core_web_lg")
 
 
 class TextGenerationRequest(BaseModel):
@@ -55,3 +59,29 @@ def get_next_words(word: str):
 def generate_text(request: TextGenerationRequest):
     generated_text = bigram_model.generate_text(request.start_word, request.length)
     return {"generated_text": generated_text}
+
+
+@app.get("/embedding/{word}")
+def get_embedding(word: str, dimensions: Optional[int] = Query(None, ge=1, le=300)):
+    """Return the spaCy embedding vector for `word`.
+
+    Pass `dimensions` to return only the first N values (the full vector has 300).
+    """
+    if not embedding_model.has_vector(word):
+        raise HTTPException(status_code=404, detail=f"'{word}' is not in the {embedding_model.model_name} vocabulary")
+    embedding = embedding_model.calculate_embedding(word)
+    return {
+        "word": word,
+        "model": embedding_model.model_name,
+        "dimension": len(embedding),
+        "embedding": embedding[:dimensions] if dimensions else embedding,
+    }
+
+
+@app.get("/similarity")
+def get_similarity(word1: str, word2: str):
+    """Cosine similarity between the embeddings of two words."""
+    for word in (word1, word2):
+        if not embedding_model.has_vector(word):
+            raise HTTPException(status_code=404, detail=f"'{word}' is not in the {embedding_model.model_name} vocabulary")
+    return {"word1": word1, "word2": word2, "similarity": embedding_model.calculate_similarity(word1, word2)}
