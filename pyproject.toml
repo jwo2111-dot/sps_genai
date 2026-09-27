@@ -1,0 +1,14 @@
+[project]
+name = "sps-genai"
+version = "0.1.0"
+description = "Simple bigram text generation API built with FastAPI"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.115.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
