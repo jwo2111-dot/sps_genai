@@ -64,17 +64,21 @@ def test_embedding_endpoint():
     assert any(value != 0 for value in body["embedding"])
 
 
-def test_embedding_dimensions_param():
-    body = client.get("/embedding/apple", params={"dimensions": 10}).json()
+def test_embedding_limit_param():
+    body = client.get("/embedding/apple", params={"limit": 10}).json()
     assert len(body["embedding"]) == 10
     assert body["dimension"] == 300
 
 
-def test_embedding_unknown_word():
+def test_unknown_word_returns_404():
     assert client.get("/embedding/qwxzvb").status_code == 404
+    params = {"word1": "apple", "word2": "qwxzvb"}
+    assert client.get("/similarity", params=params).status_code == 404
 
 
 def test_similarity_endpoint():
-    fruit = client.get("/similarity", params={"word1": "apple", "word2": "orange"}).json()["similarity"]
-    car = client.get("/similarity", params={"word1": "apple", "word2": "car"}).json()["similarity"]
-    assert fruit > car
+    def similarity(word1, word2):
+        params = {"word1": word1, "word2": word2}
+        return client.get("/similarity", params=params).json()["similarity"]
+
+    assert similarity("apple", "orange") > similarity("apple", "car")

@@ -1,7 +1,7 @@
 [project]
 name = "sps-genai"
 version = "0.1.0"
-description = "Simple bigram text generation API built with FastAPI"
+description = "FastAPI service for bigram text generation and spaCy word embeddings"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -17,3 +17,9 @@ dev = [
 
 [tool.uv.sources]
 en-core-web-lg = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl" }
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
