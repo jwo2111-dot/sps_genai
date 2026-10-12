@@ -4,6 +4,7 @@ FastAPI service for Applied Generative AI:
 
 - **Module 3 class activity:** text generation with a bigram language model
 - **Assignment 1:** word embeddings and similarity with spaCy's `en_core_web_lg` (as in the Module 2 practical)
+- **Assignment 2:** a CNN image classifier trained on CIFAR-10 (architecture below)
 
 Built with help from Claude Code (the course allows LLM coding assistants).
 
@@ -13,9 +14,16 @@ Built with help from Claude Code (the course allows LLM coding assistants).
 sps_genai/
 ├── app/
 │   ├── bigram_model.py     # bigram probabilities and text generation
+│   ├── cnn_model.py        # SimpleCNN architecture and image classifier
 │   ├── embedding_model.py  # spaCy embeddings and similarity
-│   └── main.py             # API endpoints
-├── tests/test_api.py
+│   ├── main.py             # API endpoints
+│   └── weights/
+│       └── cnn_cifar10.pt  # trained CNN weights
+├── tests/
+│   ├── test_api.py
+│   └── test_cnn.py
+├── samples/                # one CIFAR-10 test image per class, for trying /classify
+├── train_cnn.py            # trains the CNN on CIFAR-10
 ├── Dockerfile
 ├── pyproject.toml
 └── uv.lock
@@ -28,7 +36,7 @@ docker build -t sps-genai .
 docker run -p 8000:80 sps-genai
 ```
 
-Then open http://127.0.0.1:8000/docs. The image is about 1.5 GB because it includes the `en_core_web_lg` model, so the first build takes a few minutes.
+Then open http://127.0.0.1:8000/docs. The image is about 2.4 GB because it includes the spaCy `en_core_web_lg` model and PyTorch (CPU build), so the first build takes a few minutes.
 
 ## Run locally with uv
 
@@ -36,6 +44,29 @@ Then open http://127.0.0.1:8000/docs. The image is about 1.5 GB because it inclu
 uv sync
 uv run fastapi dev app/main.py
 uv run pytest
+```
+
+## CNN image classifier (Assignment 2)
+
+`SimpleCNN` in `app/cnn_model.py` follows the assignment's architecture:
+
+| Layer | Output shape |
+|---|---|
+| Input (RGB image) | 3 × 64 × 64 |
+| Conv2D, 16 filters, 3×3, stride 1, padding 1 + ReLU | 16 × 64 × 64 |
+| MaxPool 2×2, stride 2 | 16 × 32 × 32 |
+| Conv2D, 32 filters, 3×3, stride 1, padding 1 + ReLU | 32 × 32 × 32 |
+| MaxPool 2×2, stride 2 | 32 × 16 × 16 |
+| Flatten | 8192 |
+| Fully connected + ReLU | 100 |
+| Fully connected | 10 |
+
+CIFAR-10 images are 32×32, so they are resized to 64×64 to match the input size. Uploaded images of any size are resized the same way.
+
+The model was trained for 10 epochs with Adam (learning rate 0.001, batch size 32, random horizontal flips) and reaches **67.4% accuracy on the CIFAR-10 test set**. The trained weights are committed in `app/weights/`, so the API and Docker image do not need to retrain. To retrain (downloads CIFAR-10, about 170 MB):
+
+```bash
+uv run python train_cnn.py --epochs 10
 ```
 
 ## Endpoints
@@ -49,6 +80,8 @@ uv run pytest
 | POST | `/generate` | Generate text from a start word |
 | GET | `/embedding/{word}` | 300-dimensional embedding for `word` (`?limit=N` returns the first N values) |
 | GET | `/similarity?word1=&word2=` | Cosine similarity between two words |
+| POST | `/classify` | Upload an image (`file`), get its CIFAR-10 class and the probability of each class |
+| GET | `/classes` | The 10 classes the classifier can predict |
 
 ### Examples
 
@@ -66,6 +99,9 @@ curl "http://127.0.0.1:8000/embedding/apple?limit=5"
 
 curl "http://127.0.0.1:8000/similarity?word1=apple&word2=orange"
 # {"word1": "apple", "word2": "orange", "similarity": 0.5619}
+
+curl -X POST http://127.0.0.1:8000/classify -F "file=@samples/ship.png"
+# {"filename": "ship.png", "class": "ship", "confidence": 0.90, "probabilities": {"airplane": 0.02, ...}}
 ```
 
 `length` must be between 1 and 100. Generation stops early at a word that nothing follows in the corpus. Words without an embedding return 404.
