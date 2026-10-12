@@ -1,12 +1,16 @@
-from fastapi import FastAPI, HTTPException, Query
+from typing import Annotated
+
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from PIL import UnidentifiedImageError
 from pydantic import BaseModel, Field
 
 from app.bigram_model import BigramModel
+from app.cnn_model import CLASSES, ImageClassifier
 from app.embedding_model import EmbeddingModel
 
 app = FastAPI(
     title="SPS GenAI",
-    description="Bigram text generation and spaCy word embeddings.",
+    description="Bigram text generation, spaCy word embeddings and CIFAR-10 image classification.",
 )
 
 # Sample corpus for the bigram model
@@ -20,6 +24,7 @@ It tells the story of Edmond Dantès, who is falsely imprisoned and later seeks 
 
 bigram_model = BigramModel(corpus)
 embedding_model = EmbeddingModel("en_core_web_lg")
+image_classifier = ImageClassifier()
 
 
 class TextGenerationRequest(BaseModel):
@@ -85,3 +90,20 @@ def get_similarity(word1: str, word2: str):
     require_vector(word2)
     similarity = embedding_model.calculate_similarity(word1, word2)
     return {"word1": word1, "word2": word2, "similarity": similarity}
+
+
+@app.get("/classes")
+def get_classes():
+    """The 10 CIFAR-10 classes the image classifier can predict."""
+    return {"classes": CLASSES}
+
+
+@app.post("/classify")
+async def classify_image(file: Annotated[UploadFile, File()]):
+    """Classify an uploaded image (JPEG, PNG, ...) into one of the CIFAR-10 classes."""
+    image_bytes = await file.read()
+    try:
+        result = image_classifier.predict(image_bytes)
+    except UnidentifiedImageError:
+        raise HTTPException(status_code=400, detail="File is not a readable image") from None
+    return {"filename": file.filename, **result}
