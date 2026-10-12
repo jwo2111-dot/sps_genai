@@ -1,7 +1,4 @@
-"""Train SimpleCNN on CIFAR-10 and save the weights used by the API.
-
-Usage: uv run python train_cnn.py [--epochs 10]
-"""
+"""Train SimpleCNN on CIFAR-10: uv run python train_cnn.py [--epochs 10]"""
 
 import argparse
 
@@ -48,7 +45,6 @@ def main():
     device = get_device()
     print(f"Using device: {device}")
 
-    # Random flips help the model generalize; the test set uses the plain transform
     train_transform = transforms.Compose(
         [
             transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
@@ -94,7 +90,6 @@ def main():
             f"train acc {train_accuracy:.3f}, test acc {test_accuracy:.3f}"
         )
 
-        # Keep the weights from the epoch with the best test accuracy
         if test_accuracy > best_accuracy:
             best_accuracy = test_accuracy
             WEIGHTS_PATH.parent.mkdir(parents=True, exist_ok=True)

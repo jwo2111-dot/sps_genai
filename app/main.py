@@ -13,7 +13,6 @@ app = FastAPI(
     description="Bigram text generation, spaCy word embeddings and CIFAR-10 image classification.",
 )
 
-# Sample corpus for the bigram model
 corpus = [
     "The Count of Monte Cristo is a novel written by Alexandre Dumas. \
 It tells the story of Edmond Dantès, who is falsely imprisoned and later seeks revenge.",
@@ -49,14 +48,12 @@ def health():
 
 @app.get("/vocabulary")
 def get_vocabulary():
-    """Words in the bigram model's corpus."""
     vocabulary = bigram_model.vocabulary
     return {"size": len(vocabulary), "words": vocabulary}
 
 
 @app.get("/next_words/{word}")
 def get_next_words(word: str):
-    """Probability of each word that can follow `word`."""
     probs = bigram_model.next_word_probs(word)
     if not probs:
         raise HTTPException(status_code=404, detail=f"No words follow '{word}' in the corpus")
@@ -65,14 +62,13 @@ def get_next_words(word: str):
 
 @app.post("/generate")
 def generate_text(request: TextGenerationRequest):
-    """Generate up to `length` words starting from `start_word`."""
     generated_text = bigram_model.generate_text(request.start_word, request.length)
     return {"generated_text": generated_text}
 
 
 @app.get("/embedding/{word}")
 def get_embedding(word: str, limit: int | None = Query(None, ge=1, le=300)):
-    """spaCy embedding for `word`. Use `limit` to return only the first N values."""
+    """`limit` returns only the first N values."""
     require_vector(word)
     embedding = embedding_model.calculate_embedding(word)
     return {
@@ -85,7 +81,6 @@ def get_embedding(word: str, limit: int | None = Query(None, ge=1, le=300)):
 
 @app.get("/similarity")
 def get_similarity(word1: str, word2: str):
-    """Cosine similarity between the embeddings of two words."""
     require_vector(word1)
     require_vector(word2)
     similarity = embedding_model.calculate_similarity(word1, word2)
@@ -94,13 +89,11 @@ def get_similarity(word1: str, word2: str):
 
 @app.get("/classes")
 def get_classes():
-    """The 10 CIFAR-10 classes the image classifier can predict."""
     return {"classes": CLASSES}
 
 
 @app.post("/classify")
 async def classify_image(file: Annotated[UploadFile, File()]):
-    """Classify an uploaded image (JPEG, PNG, ...) into one of the CIFAR-10 classes."""
     image_bytes = await file.read()
     try:
         result = image_classifier.predict(image_bytes)
