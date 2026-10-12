@@ -25,7 +25,7 @@ CLASSES = [
 IMAGE_SIZE = 64
 WEIGHTS_PATH = Path(__file__).parent / "weights" / "cnn_cifar10.pt"
 
-# CIFAR-10 images are 32x32, so they are resized to the 64x64 input the architecture expects
+# CIFAR-10 is 32x32; the network expects 64x64
 transform = transforms.Compose(
     [
         transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
@@ -35,12 +35,10 @@ transform = transforms.Compose(
 
 
 class SimpleCNN(nn.Module):
-    """Assignment 2 architecture: 64x64x3 input, two conv/pool blocks, FC 100, FC 10."""
-
     def __init__(self, num_classes=10):
         super().__init__()
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1)  # 16 x 64 x 64
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)  # halves height and width
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)  # 32 x 32 x 32
         self.fc1 = nn.Linear(32 * 16 * 16, 100)
         self.fc2 = nn.Linear(100, num_classes)
@@ -55,8 +53,6 @@ class SimpleCNN(nn.Module):
 
 
 class ImageClassifier:
-    """Loads trained SimpleCNN weights and classifies uploaded images."""
-
     def __init__(self, weights_path=WEIGHTS_PATH):
         self.model = SimpleCNN(num_classes=len(CLASSES))
         state_dict = torch.load(weights_path, map_location="cpu", weights_only=True)
@@ -64,9 +60,8 @@ class ImageClassifier:
         self.model.eval()
 
     def predict(self, image_bytes):
-        """Return the predicted class and the probability of each class."""
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        x = transform(image).unsqueeze(0)  # add batch dimension: 1 x 3 x 64 x 64
+        x = transform(image).unsqueeze(0)  # 1 x 3 x 64 x 64
         with torch.no_grad():
             probs = F.softmax(self.model(x), dim=1)[0]
         best = int(probs.argmax())
