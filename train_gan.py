@@ -19,7 +19,7 @@ BATCH_SIZE = 128
 
 
 def weights_init(module):
-    # DCGAN initialization: N(0, 0.02) for conv weights, N(1, 0.02) for BatchNorm scale
+    # DCGAN-style init
     if isinstance(module, (nn.Conv2d, nn.ConvTranspose2d)):
         nn.init.normal_(module.weight, 0.0, 0.02)
     elif isinstance(module, nn.BatchNorm2d):
@@ -38,7 +38,7 @@ def main():
     device = get_device()
     print(f"Using device: {device}")
 
-    # Scale pixels to [-1, 1] to match the generator's Tanh output
+    # [-1, 1] to match tanh
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
     dataset = torchvision.datasets.MNIST(
         root="./data", train=True, download=True, transform=transform
@@ -69,7 +69,7 @@ def main():
             real = real.to(device)
             fake = generator(torch.randn(BATCH_SIZE, LATENT_DIM, device=device))
 
-            # Discriminator: push D(real) toward 1 and D(fake) toward 0
+            # train D
             opt_d.zero_grad()
             d_real = discriminator(real)
             d_fake = discriminator(fake.detach())
@@ -77,7 +77,7 @@ def main():
             loss_d.backward()
             opt_d.step()
 
-            # Generator: push D(fake) toward 1 (non-saturating loss)
+            # train G
             opt_g.zero_grad()
             loss_g = criterion(discriminator(fake), real_label)
             loss_g.backward()

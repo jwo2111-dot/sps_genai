@@ -1,4 +1,4 @@
-"""GAN for MNIST digits (Assignment 3)."""
+"""MNIST GAN (Assignment 3)."""
 
 import io
 from pathlib import Path
@@ -55,12 +55,11 @@ class DigitGenerator:
         self.model.eval()
 
     def generate(self, count=16, seed=None):
-        """Images in [0, 1], shape count x 1 x 28 x 28."""
         generator = torch.Generator().manual_seed(seed) if seed is not None else None
         z = torch.randn(count, LATENT_DIM, generator=generator)
         with torch.no_grad():
             images = self.model(z)
-        return (images + 1) / 2  # Tanh output is in [-1, 1]
+        return (images + 1) / 2  # [-1, 1] -> [0, 1]
 
     def generate_png(self, count=16, seed=None, scale=4):
         images = self.generate(count, seed)
