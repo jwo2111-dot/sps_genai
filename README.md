@@ -5,6 +5,7 @@ FastAPI service for Applied Generative AI:
 - **Module 3 class activity:** text generation with a bigram language model
 - **Assignment 1:** word embeddings and similarity with spaCy's `en_core_web_lg` (as in the Module 2 practical)
 - **Assignment 2:** a CNN image classifier trained on CIFAR-10 (architecture below)
+- **Assignment 3:** a GAN trained on MNIST that generates handwritten digits
 
 Built with help from Claude Code (the course allows LLM coding assistants).
 
@@ -16,14 +17,18 @@ sps_genai/
 │   ├── bigram_model.py     # bigram probabilities and text generation
 │   ├── cnn_model.py        # SimpleCNN architecture and image classifier
 │   ├── embedding_model.py  # spaCy embeddings and similarity
+│   ├── gan_model.py        # GAN generator and discriminator
 │   ├── main.py             # API endpoints
 │   └── weights/
-│       └── cnn_cifar10.pt  # trained CNN weights
+│       ├── cnn_cifar10.pt           # trained CNN weights
+│       └── gan_generator_mnist.pt   # trained GAN generator weights
 ├── tests/
 │   ├── test_api.py
-│   └── test_cnn.py
+│   ├── test_cnn.py
+│   └── test_gan.py
 ├── samples/                # one CIFAR-10 test image per class, for trying /classify
 ├── train_cnn.py            # trains the CNN on CIFAR-10
+├── train_gan.py            # trains the GAN on MNIST
 ├── Dockerfile
 ├── pyproject.toml
 └── uv.lock
@@ -69,6 +74,36 @@ The model was trained for 10 epochs with Adam (learning rate 0.001, batch size 3
 uv run python train_cnn.py --epochs 10
 ```
 
+## GAN digit generator (Assignment 3)
+
+`app/gan_model.py` follows the assignment's architecture.
+
+**Generator** (noise in, image out):
+
+| Layer | Output shape |
+|---|---|
+| Input noise | 100 |
+| Fully connected, reshape | 128 × 7 × 7 |
+| ConvTranspose2D 128 → 64, kernel 4, stride 2, padding 1 + BatchNorm + ReLU | 64 × 14 × 14 |
+| ConvTranspose2D 64 → 1, kernel 4, stride 2, padding 1 + Tanh | 1 × 28 × 28 |
+
+**Discriminator** (image in, real/fake probability out):
+
+| Layer | Output shape |
+|---|---|
+| Input image | 1 × 28 × 28 |
+| Conv2D 1 → 64, kernel 4, stride 2, padding 1 + LeakyReLU(0.2) | 64 × 14 × 14 |
+| Conv2D 64 → 128, kernel 4, stride 2, padding 1 + BatchNorm + LeakyReLU(0.2) | 128 × 7 × 7 |
+| Flatten, Linear + Sigmoid | 1 |
+
+Training uses MNIST scaled to [-1, 1] (to match Tanh), binary cross-entropy, and Adam (learning rate 0.0002, betas 0.5 and 0.999, batch size 128) for 20 epochs. Only the generator weights are needed to serve the API. To retrain:
+
+```bash
+uv run python train_gan.py --epochs 20
+```
+
+![Generated digits](samples/gan_digits.png)
+
 ## Endpoints
 
 | Method | Path | Description |
@@ -82,6 +117,7 @@ uv run python train_cnn.py --epochs 10
 | GET | `/similarity?word1=&word2=` | Cosine similarity between two words |
 | POST | `/classify` | Upload an image (`file`), get its CIFAR-10 class and the probability of each class |
 | GET | `/classes` | The 10 classes the classifier can predict |
+| GET | `/gan/digits?count=16&seed=1` | PNG grid of GAN-generated digits (`count` 1–64; same `seed` gives the same digits) |
 
 ### Examples
 
@@ -102,6 +138,8 @@ curl "http://127.0.0.1:8000/similarity?word1=apple&word2=orange"
 
 curl -X POST http://127.0.0.1:8000/classify -F "file=@samples/ship.png"
 # {"filename": "ship.png", "class": "ship", "confidence": 0.90, "probabilities": {"airplane": 0.02, ...}}
+
+curl "http://127.0.0.1:8000/gan/digits?count=16&seed=1" -o digits.png
 ```
 
 `length` must be between 1 and 100. Generation stops early at a word that nothing follows in the corpus. Words without an embedding return 404.
