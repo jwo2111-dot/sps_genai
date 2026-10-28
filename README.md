@@ -7,8 +7,6 @@ FastAPI service for Applied Generative AI:
 - **Assignment 2:** a CNN image classifier trained on CIFAR-10 (architecture below)
 - **Assignment 3:** a GAN trained on MNIST that generates handwritten digits
 
-Built with help from Claude Code (the course allows LLM coding assistants).
-
 ## Project structure
 
 ```
